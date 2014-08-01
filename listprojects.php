@@ -26,7 +26,7 @@ function main($argv)
   $projects = $testRail->send_get('get_projects');
 
   foreach($projects as $item) {
-    echo $item['id'] . "-" . $item['name'] . "\r\n";
+    echo $item['id'] . " - " . $item['name'] . PHP_EOL;
   }
 }
 
