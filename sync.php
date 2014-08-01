@@ -29,6 +29,7 @@ function main($argv)
 	$testRail->set_destination($config['destination']);
 
 	$testRail->syncMilestones();
+	$testRail->syncSuites();
 
 }
 

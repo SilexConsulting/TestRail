@@ -62,8 +62,9 @@ class TestRailSync extends TestRailAPIClient
 		}
 
 		// If a milestone is identical in Source and Destination, remove it from consideration
-		foreach ($sourceMilestones as $sourceKey => $sourceMilestone) {
-			foreach ($destinationMilestones as $destinationKey => $destinationMilestone) {
+		// Outer loop must be destinationMilestones, in case there are duplicates in $sourceMilestones
+		foreach ($destinationMilestones as $destinationKey => $destinationMilestone) {
+			foreach ($sourceMilestones as $sourceKey => $sourceMilestone) {
 				if ($this->equalMilestones($sourceMilestone, $destinationMilestone)) {
 					unset($sourceMilestones[$sourceKey]);
 					unset($destinationMilestones[$destinationKey]);
@@ -74,6 +75,47 @@ class TestRailSync extends TestRailAPIClient
 		// Copy remaining Source milestones to Destination
 		foreach ($sourceMilestones as $sourceMilestone) {
 			$this->addMilestone($this->destinationProject, $sourceMilestone);
+		}
+	}
+
+	/**
+	 * Sync $sourceProject's suites to $destinationProject
+	 */
+	public function syncSuites()
+	{
+		$sourceSuites = $this->getSuites($this->sourceProject);
+		$destinationSuites = $this->getSuites($this->destinationProject);
+
+		// If a suite exists in Destination but not in Source, delete it from Destination
+		foreach ($destinationSuites as $destinationSuite) {
+			$found = FALSE;
+			foreach ($sourceSuites as $sourceSuite)
+			{
+				if ($this->equalSuites($sourceSuite, $destinationSuite))
+				{
+					$found = TRUE;
+					break;
+				}
+			}
+			if ($found == FALSE) {
+				$this->deleteSuite($destinationSuite);
+			}
+		}
+
+		// If a suite is identical in Source and Destination, remove it from consideration
+		// Outer loop must be destinationSuites, in case there are duplicates in sourceSuites
+		foreach ($destinationSuites as $destinationKey => $destinationSuite) {
+			foreach ($sourceSuites as $sourceKey => $sourceSuite) {
+				if ($this->equalSuites($sourceSuite, $destinationSuite)) {
+					unset($sourceSuites[$sourceKey]);
+					unset($destinationSuites[$destinationKey]);
+				}
+			}
+		}
+
+		// Copy remaining Source suites to Destination
+		foreach ($sourceSuites as $sourceSuite) {
+			$this->addSuite($this->destinationProject, $sourceSuite);
 		}
 	}
 
@@ -105,13 +147,21 @@ class TestRailSync extends TestRailAPIClient
 	}
 
 	/**
-	 * Delete a milestone
+	 * Returns true if the suites can be considered equal, else false
 	 *
-	 * @param array $destinationMilestone
+	 * @param array $a
+	 * @param array $b
+	 * @return bool true if the suites can be considered equal, else false
 	 */
-	private function deleteMilestone($destinationMilestone)
+	private function equalSuites($a, $b)
 	{
-		$this->send_post("delete_milestone/{$destinationMilestone['id']}", array());
+		if ($a['name'] != $b['name']) {
+			return false;
+		}
+		if ($a['description'] != $b['description']) {
+			return false;
+		}
+		return true;
 	}
 
 	/**
@@ -131,13 +181,59 @@ class TestRailSync extends TestRailAPIClient
 	}
 
 	/**
+	 * Add a new suite to a project
+	 *
+	 * @param $projectId Project to add to
+	 * @param $suite Suite to add
+	 */
+	private function addSuite($projectId, $suite)
+	{
+		$data = array(
+			'name'          => $suite['name'],
+			'description'   => $suite['description'],
+		);
+		$this->send_post("add_suite/{$projectId}", $data);
+	}
+
+	/**
+	 * Delete a milestone
+	 *
+	 * @param array $milestone
+	 */
+	private function deleteMilestone($milestone)
+	{
+		$this->send_post("delete_milestone/{$milestone['id']}", array());
+	}
+
+	/**
+	 * Delete a suite
+	 *
+	 * @param array $suite
+	 */
+	private function deleteSuite($suite)
+	{
+		$this->send_post("delete_suite/{$suite['id']}", array());
+	}
+
+	/**
 	 * Return an array of milestones for the given projectid
 	 *
-	 * @param int $project
+	 * @param int projectid Project to get from
 	 * @return array|mixed
 	 */
-	private function getMilestones($project)
+	private function getMilestones($projectId)
 	{
-		return $this->send_get("get_milestones/{$project}");
+		return $this->send_get("get_milestones/{$projectId}");
+	}
+
+	/**
+	 * Return an array of suites for the given projectid
+	 *
+	 * @param int projectid Project to get from
+	 * @return array|mixed
+	 */
+	private function getSuites($projectId)
+	{
+		return $this->send_get("get_suites/{$projectId}");
 	}
 }
