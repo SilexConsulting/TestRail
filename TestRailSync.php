@@ -38,17 +38,25 @@ class TestRailSync extends TestRailAPIClient
 	}
 
 	/**
-	 * Sync $sourceProject's milestones to $destinationProject
+	 * Perform sync operation
 	 */
-	public function syncMilestones()
+	public function sync()
 	{
-		$sourceMilestones = $this->getMilestones($this->sourceProject);
-		$destinationMilestones = $this->getMilestones($this->destinationProject);
+		$this->sourceMilestones = $this->getMilestones($this->sourceProject);
+		$this->destinationMilestones = $this->getMilestones($this->destinationProject);
+		$this->deleteOrphanedMilestones();
+		$this->matchMilestones();
+		$this->copyMilestones();
+	}
 
-		// If a milestone exists in Destination but not in Source, delete it from Destination
-		foreach ($destinationMilestones as $destinationMilestone) {
+	/**
+	 * If a milestone exists in Destination but not in Source, delete it from Destination
+	 */
+	private function deleteOrphanedMilestones()
+	{
+		foreach ($this->destinationMilestones as $destinationKey => $destinationMilestone) {
 			$found = FALSE;
-			foreach ($sourceMilestones as $sourceMilestone)
+			foreach ($this->sourceMilestones as $sourceKey => $sourceMilestone)
 			{
 				if ($this->equalMilestones($sourceMilestone, $destinationMilestone))
 				{
@@ -58,23 +66,36 @@ class TestRailSync extends TestRailAPIClient
 			}
 			if ($found == FALSE) {
 				$this->deleteMilestone($destinationMilestone);
+				unset($this->destinationMilestones[$destinationKey]);
 			}
 		}
+	}
 
-		// If a milestone is identical in Source and Destination, remove it from consideration
-		// Outer loop must be destinationMilestones, in case there are duplicates in $sourceMilestones
-		foreach ($destinationMilestones as $destinationKey => $destinationMilestone) {
-			foreach ($sourceMilestones as $sourceKey => $sourceMilestone) {
+	/**
+	 * If a milestone is identical in Source and Destination, remove it from consideration
+	 * by tagging the sourceMilestone with it's matching destinationMilestone's ID
+	 */
+	private function matchMilestones()
+	{
+		foreach ($this->sourceMilestones as &$sourceMilestone) {
+			foreach ($this->destinationMilestones as $destinationMilestone) {
 				if ($this->equalMilestones($sourceMilestone, $destinationMilestone)) {
-					unset($sourceMilestones[$sourceKey]);
-					unset($destinationMilestones[$destinationKey]);
+					$sourceMilestone['destination_id'] = $destinationMilestone['id'];
 				}
 			}
 		}
+	}
 
-		// Copy remaining Source milestones to Destination
-		foreach ($sourceMilestones as $sourceMilestone) {
-			$this->addMilestone($this->destinationProject, $sourceMilestone);
+	/**
+	 * Sync $sourceProject's milestones to $destinationProject
+	 */
+	public function copyMilestones()
+	{
+		foreach ($this->sourceMilestones as &$sourceMilestone) {
+			if (!isset($sourceMilestone['destination_id'])) {
+				$destinationMilestone = $this->addMilestone($this->destinationProject, $sourceMilestone);
+				$sourceMilestone['destination_id'] = $destinationMilestone['id'];
+			}
 		}
 	}
 
@@ -177,7 +198,7 @@ class TestRailSync extends TestRailAPIClient
 			'description'   => $milestone['description'],
 			'due_on'        => $milestone['due_on'],
 		);
-		$this->send_post("add_milestone/{$projectId}", $data);
+		return $this->send_post("add_milestone/{$projectId}", $data);
 	}
 
 	/**

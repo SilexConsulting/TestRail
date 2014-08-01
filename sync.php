@@ -28,9 +28,7 @@ function main($argv)
 	$testRail->set_source($config['source']);
 	$testRail->set_destination($config['destination']);
 
-	$testRail->syncMilestones();
-	$testRail->syncSuites();
-
+	$testRail->sync();
 }
 
 /**
