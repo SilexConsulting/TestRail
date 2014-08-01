@@ -17,6 +17,20 @@ function main($argv)
   }
 
   $config = get_config($argv[1]);
+
+  $testRail = new TestRailAPIClient($config['url']);
+  $testRail->set_user($config['username']);
+  $testRail->set_password($config['password']);
+
+  //LIST PROJECTS
+  header('Accept: application/json');
+  $projects = json_encode($testRail->send_get('get_projects'));
+
+  $HRdata = json_decode($projects, true);
+
+  foreach($HRdata as $item) {
+    echo $item['id'] . "-" . $item['name'] . "\r\n";
+  }
 }
 
 /**
@@ -53,18 +67,6 @@ function get_config($filename)
 
   return $config;
 }
-
-$config = get_config($argv[1]);
-
-$testRail = new TestRailAPIClient($config['url']);
-$testRail->set_user($config['username']);
-$testRail->set_password($config['password']);
-
-//LIST PROJETCS
-header('Accept: application/json');
-$projects = $testRail->send_get('get_projects');
-
-var_dump(json_encode($projects));
 
 /**
  * Exception-handler of last resort, writes to STDERR
