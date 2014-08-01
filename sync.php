@@ -4,7 +4,7 @@
  * Accepts one param, an ini file.
  */
 
-require_once 'testrail-api/php/testrail.php';
+require_once 'TestRailSync.php';
 
 set_exception_handler('exception_handler');
 main($argv);
@@ -21,6 +21,15 @@ function main($argv)
 	}
 
 	$config = get_config($argv[1]);
+
+	$testRail = new TestRailSync($config['url']);
+	$testRail->set_user($config['username']);
+	$testRail->set_password($config['password']);
+	$testRail->set_source($config['source']);
+	$testRail->set_destination($config['destination']);
+
+	$testRail->syncMilestones();
+
 }
 
 /**
