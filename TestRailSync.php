@@ -44,9 +44,22 @@ class TestRailSync extends TestRailAPIClient
 	{
 		$this->sourceMilestones = $this->getMilestones($this->sourceProject);
 		$this->destinationMilestones = $this->getMilestones($this->destinationProject);
+
 		$this->deleteOrphanedMilestones();
 		$this->matchMilestones();
 		$this->copyMilestones();
+
+		$this->sourceSuites = $this->getSuites($this->sourceProject);
+		$this->destinationSuites = $this->getSuites($this->destinationProject);
+
+		$this->deleteOrphanedSuites();
+		$this->matchSuites();
+		$this->copySuites();
+
+		foreach ($this->sourceSuites as $sourceSuite)
+		{
+			$this->syncSection($sourceSuite);
+		}
 	}
 
 	/**
@@ -56,7 +69,7 @@ class TestRailSync extends TestRailAPIClient
 	{
 		foreach ($this->destinationMilestones as $destinationKey => $destinationMilestone) {
 			$found = FALSE;
-			foreach ($this->sourceMilestones as $sourceKey => $sourceMilestone)
+			foreach ($this->sourceMilestones as $sourceMilestone)
 			{
 				if ($this->equalMilestones($sourceMilestone, $destinationMilestone))
 				{
@@ -72,6 +85,28 @@ class TestRailSync extends TestRailAPIClient
 	}
 
 	/**
+	 * If a suite exists in Destination but not in Source, delete it from Destination
+	 */
+	private function deleteOrphanedSuites()
+	{
+		foreach ($this->destinationSuites as $destinationKey => $destinationSuite) {
+			$found = FALSE;
+			foreach ($this->sourceSuites as $sourceSuite)
+			{
+				if ($this->equalSuites($sourceSuite, $destinationSuite))
+				{
+					$found = TRUE;
+					break;
+				}
+			}
+			if ($found == FALSE) {
+				$this->deleteSuite($destinationSuite);
+				unset($this->destinationSuites[$destinationKey]);
+			}
+		}
+	}
+
+	/**
 	 * If a milestone is identical in Source and Destination, remove it from consideration
 	 * by tagging the sourceMilestone with it's matching destinationMilestone's ID
 	 */
@@ -81,6 +116,21 @@ class TestRailSync extends TestRailAPIClient
 			foreach ($this->destinationMilestones as $destinationMilestone) {
 				if ($this->equalMilestones($sourceMilestone, $destinationMilestone)) {
 					$sourceMilestone['destination_id'] = $destinationMilestone['id'];
+				}
+			}
+		}
+	}
+
+	/**
+	 * If a suite is identical in Source and Destination, remove it from consideration
+	 * by tagging the sourceSuite with it's matching destinationSuite's ID
+	 */
+	private function matchSuites()
+	{
+		foreach ($this->sourceSuites as &$sourceSuite) {
+			foreach ($this->destinationSuites as $destinationSuite) {
+				if ($this->equalSuites($sourceSuite, $destinationSuite)) {
+					$sourceSuite['destination_id'] = $destinationSuite['id'];
 				}
 			}
 		}
@@ -102,41 +152,13 @@ class TestRailSync extends TestRailAPIClient
 	/**
 	 * Sync $sourceProject's suites to $destinationProject
 	 */
-	public function syncSuites()
+	public function copySuites()
 	{
-		$sourceSuites = $this->getSuites($this->sourceProject);
-		$destinationSuites = $this->getSuites($this->destinationProject);
-
-		// If a suite exists in Destination but not in Source, delete it from Destination
-		foreach ($destinationSuites as $destinationSuite) {
-			$found = FALSE;
-			foreach ($sourceSuites as $sourceSuite)
-			{
-				if ($this->equalSuites($sourceSuite, $destinationSuite))
-				{
-					$found = TRUE;
-					break;
-				}
+		foreach ($this->sourceSuites as &$sourceSuite) {
+			if (!isset($sourceSuite['destination_id'])) {
+				$destinationSuite = $this->addSuite($this->destinationProject, $sourceSuite);
+				$sourceSuite['destination_id'] = $destinationSuite['id'];
 			}
-			if ($found == FALSE) {
-				$this->deleteSuite($destinationSuite);
-			}
-		}
-
-		// If a suite is identical in Source and Destination, remove it from consideration
-		// Outer loop must be destinationSuites, in case there are duplicates in sourceSuites
-		foreach ($destinationSuites as $destinationKey => $destinationSuite) {
-			foreach ($sourceSuites as $sourceKey => $sourceSuite) {
-				if ($this->equalSuites($sourceSuite, $destinationSuite)) {
-					unset($sourceSuites[$sourceKey]);
-					unset($destinationSuites[$destinationKey]);
-				}
-			}
-		}
-
-		// Copy remaining Source suites to Destination
-		foreach ($sourceSuites as $sourceSuite) {
-			$this->addSuite($this->destinationProject, $sourceSuite);
 		}
 	}
 
@@ -156,12 +178,6 @@ class TestRailSync extends TestRailAPIClient
 			return false;
 		}
 		if ($a['due_on'] != $b['due_on']) {
-			return false;
-		}
-		if ($a['is_completed'] != $b['is_completed']) {
-			return false;
-		}
-		if ($a['completed_on'] != $b['completed_on']) {
 			return false;
 		}
 		return true;
@@ -190,6 +206,7 @@ class TestRailSync extends TestRailAPIClient
 	 *
 	 * @param $projectId Project to add to
 	 * @param $milestone Milestone to add
+	 * @return array|mixed
 	 */
 	private function addMilestone($projectId, $milestone)
 	{
@@ -206,6 +223,7 @@ class TestRailSync extends TestRailAPIClient
 	 *
 	 * @param $projectId Project to add to
 	 * @param $suite Suite to add
+	 * @return array|mixed
 	 */
 	private function addSuite($projectId, $suite)
 	{
@@ -213,7 +231,7 @@ class TestRailSync extends TestRailAPIClient
 			'name'          => $suite['name'],
 			'description'   => $suite['description'],
 		);
-		$this->send_post("add_suite/{$projectId}", $data);
+		return $this->send_post("add_suite/{$projectId}", $data);
 	}
 
 	/**
