@@ -23,12 +23,9 @@ function main($argv)
   $testRail->set_password($config['password']);
 
   //LIST PROJECTS
-  header('Accept: application/json');
-  $projects = json_encode($testRail->send_get('get_projects'));
+  $projects = $testRail->send_get('get_projects');
 
-  $HRdata = json_decode($projects, true);
-
-  foreach($HRdata as $item) {
+  foreach($projects as $item) {
     echo $item['id'] . "-" . $item['name'] . "\r\n";
   }
 }
