@@ -4,6 +4,8 @@
  * Accepts one param, an ini file.
  */
 
+require_once 'testrail-api/php/testrail.php';
+
 set_exception_handler('exception_handler');
 main($argv);
 
@@ -37,6 +39,9 @@ function get_config($filename)
 		throw new Exception("could not read configuration from '{$filename}'");
 	}
 
+	if (!isset($config['url'])) {
+		throw new Exception("url not found in '{$filename}'");
+	}
 	if (!isset($config['username'])) {
 		throw new Exception("username not found in '{$filename}'");
 	}
