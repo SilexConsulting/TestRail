@@ -1,0 +1,3 @@
+[submodule "testrail-api"]
+	path = testrail-api
+	url = git@github.com:gurock/testrail-api
