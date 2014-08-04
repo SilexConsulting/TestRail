@@ -439,17 +439,15 @@ class TestRailSync extends TestRailAPIClient
      * @return bool TRUE if there are duplicate milestones in $this->sourceProject, else FALSE
      */
     private function duplicateMilestones($projectId)
-      {
-      //Get $milestones_array for the given $projectId.
+    {
       $milestones_array = $this->send_get("get_milestones/{$projectId}");
 
       for ($i = 0; $i < count($milestones_array); $i++) {
         for ($j = 0; $j < count($milestones_array); $j++) {
           if ($i == $j) {
+            //Continue at this point to skip the processing of commutative values
             continue;
           }
-          //Uses $this->equalMilestones() method to test for equality.
-          //@return TRUE if a duplicate milestone is found.
           if ($this->equalMilestones($milestones_array[$i], $milestones_array[$j])) {
             return true;
           }
