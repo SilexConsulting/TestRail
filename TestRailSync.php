@@ -3,6 +3,15 @@
 require_once 'testrail-api/php/testrail.php';
 
 /**
+ * Server  HAS MANY Projects
+ * Project HAS MANY Milestones
+ * Project HAS MANY Suites
+ * Suite   HAS MANY Sections
+ * Section HAS MANY Sections
+ * Section HAS MANY Cases
+ */
+
+/**
  * Operations to assist syncing TestRail cases between projects
  */
 class TestRailSync extends TestRailAPIClient
@@ -18,7 +27,7 @@ class TestRailSync extends TestRailAPIClient
 	private $destinationProject;
 
 	/**
-	 * Set the source project
+	 * COMPLETED Set the source project
 	 *
 	 * @param int $sourceProject
 	 */
@@ -28,7 +37,7 @@ class TestRailSync extends TestRailAPIClient
 	}
 
 	/**
-	 * Set the destination project
+	 * COMPLETED Set the destination project
 	 *
 	 * @param int $destinationProject
 	 */
@@ -38,19 +47,18 @@ class TestRailSync extends TestRailAPIClient
 	}
 
 	/**
-	 * Perform sync operation
+	 * Perform sync operation between sourceProject and destinationProject
 	 */
 	public function sync()
 	{
-		$this->sourceMilestones = $this->getMilestones($this->sourceProject);
-		$this->destinationMilestones = $this->getMilestones($this->destinationProject);
+		// After this call, $this->destinationMilestones is sync'd
+		// After this call, $this->sourceMilestones includes a destination_id key
+		$this->syncMilestones();
 
-		$this->deleteOrphanedMilestones();
-		$this->matchMilestones();
-		$this->copyMilestones();
+		// After this call, $this->destinationSuites is sync'd
+		// After this call, $this->sourceSuites includes a destination_id key
+		$this->syncSuites();
 
-		$this->sourceSuites = $this->getSuites($this->sourceProject);
-		$this->destinationSuites = $this->getSuites($this->destinationProject);
 
 		$this->deleteOrphanedSuites();
 		$this->matchSuites();
@@ -62,8 +70,101 @@ class TestRailSync extends TestRailAPIClient
 		}
 	}
 
+	/** START SUITES CODE */
+
+	private function syncSuites()
+	{
+		$this->sourceSuites = $this->getSuites($this->sourceProject);
+		$this->destinationSuites = $this->getSuites($this->destinationProject);
+
+		$this->deleteOrphanedSuites();
+		$this->matchSuites();
+		$this->copyMilestones();
+	}
+
 	/**
-	 * If a milestone exists in Destination but not in Source, delete it from Destination
+	 * COMPLETED If a suite exists in Destination but not in Source, delete it from Destination
+	 */
+	private function deleteOrphanedSuites()
+	{
+		foreach ($this->destinationSuites as $destinationKey => $destinationSuite) {
+			$found = FALSE;
+			foreach ($this->sourceSuites as $sourceSuite)
+			{
+				if ($this->equalSuites($sourceSuite, $destinationSuite))
+				{
+					$found = TRUE;
+					break;
+				}
+			}
+			if ($found == FALSE) {
+				$this->deleteSuite($destinationSuite);
+				unset($this->destinationSuite[$destinationKey]);
+			}
+		}
+	}
+
+	/**
+	 * COMPLETED Return an array of suites for the given projectid
+	 *
+	 * @param int projectid Project to get from
+	 * @return array|mixed
+	 */
+	private function getSuites($projectId)
+	{
+		return $this->send_get("get_suites/{$projectId}");
+	}
+
+	/**
+	 * COMPLETED Delete a suite
+	 *
+	 * @param array $suite
+	 */
+	private function deleteSuite($suite)
+	{
+		$this->send_post("delete_suite/{$suite['id']}", array());
+	}
+
+	/**
+	 * COMPLETED Returns true if the suites can be considered equal, else false
+	 *
+	 * @param array $a
+	 * @param array $b
+	 * @return bool true if the suites can be considered equal, else false
+	 */
+	private function equalSuites($a, $b)
+	{
+		if ($a['name'] != $b['name']) {
+			return false;
+		}
+		return true;
+	}
+
+
+
+
+
+
+
+	/** END SUITES CODE */
+
+	/** START MILESTONES CODE */
+
+	/**
+	 * COMPLETED Sync milestones from Source to Destination.
+	 */
+	private function syncMilestones()
+	{
+		$this->sourceMilestones = $this->getMilestones($this->sourceProject);
+		$this->destinationMilestones = $this->getMilestones($this->destinationProject);
+
+		$this->deleteOrphanedMilestones();
+		$this->matchMilestones();
+		$this->copyMilestones();
+	}
+
+	/**
+	 * COMPLETED If a milestone exists in Destination but not in Source, delete it from Destination
 	 */
 	private function deleteOrphanedMilestones()
 	{
@@ -85,29 +186,7 @@ class TestRailSync extends TestRailAPIClient
 	}
 
 	/**
-	 * If a suite exists in Destination but not in Source, delete it from Destination
-	 */
-	private function deleteOrphanedSuites()
-	{
-		foreach ($this->destinationSuites as $destinationKey => $destinationSuite) {
-			$found = FALSE;
-			foreach ($this->sourceSuites as $sourceSuite)
-			{
-				if ($this->equalSuites($sourceSuite, $destinationSuite))
-				{
-					$found = TRUE;
-					break;
-				}
-			}
-			if ($found == FALSE) {
-				$this->deleteSuite($destinationSuite);
-				unset($this->destinationSuites[$destinationKey]);
-			}
-		}
-	}
-
-	/**
-	 * If a milestone is identical in Source and Destination, remove it from consideration
+	 * COMPLETED If a milestone is identical in Source and Destination, remove it from consideration
 	 * by tagging the sourceMilestone with it's matching destinationMilestone's ID
 	 */
 	private function matchMilestones()
@@ -116,6 +195,110 @@ class TestRailSync extends TestRailAPIClient
 			foreach ($this->destinationMilestones as $destinationMilestone) {
 				if ($this->equalMilestones($sourceMilestone, $destinationMilestone)) {
 					$sourceMilestone['destination_id'] = $destinationMilestone['id'];
+				}
+			}
+		}
+	}
+
+	/**
+	 * COMPLETED Sync $sourceProject's milestones to $destinationProject
+	 */
+	public function copyMilestones()
+	{
+		foreach ($this->sourceMilestones as &$sourceMilestone) {
+			if (!isset($sourceMilestone['destination_id'])) {
+				$destinationMilestone = $this->addMilestone($this->destinationProject, $sourceMilestone);
+				$sourceMilestone['destination_id'] = $destinationMilestone['id'];
+			}
+		}
+	}
+
+	/**
+	 * COMPLETED Return an array of milestones for the given projectid
+	 *
+	 * @param int projectid Project to get from
+	 * @return array|mixed
+	 */
+	private function getMilestones($projectId)
+	{
+		return $this->send_get("get_milestones/{$projectId}");
+	}
+
+	/**
+	 * COMPLETED Returns true if the milestones can be considered equal, else false
+	 *
+	 * @param array $a
+	 * @param array $b
+	 * @return bool true if the milestones can be considered equal, else false
+	 */
+	private function equalMilestones($a, $b)
+	{
+		if ($a['name'] != $b['name']) {
+			return false;
+		}
+		return true;
+	}
+
+	/**
+	 * COMPLETED Delete a milestone
+	 *
+	 * @param array $milestone
+	 */
+	private function deleteMilestone($milestone)
+	{
+		$this->send_post("delete_milestone/{$milestone['id']}", array());
+	}
+
+	/** END MILESTONES CODE */
+
+
+
+
+
+
+
+	public function syncSection($sourceSuite)
+	{
+		$this->sourceSections = $this->getSections($this->sourceProject, $sourceSuite['id']);
+		$this->destinationSections = $this->getSections($this->destinationProject, $sourceSuite['destination_id']);
+
+		$this->deleteOrphanedSections();
+		$this->matchSections();
+		$this->copySections();
+	}
+
+	/**
+	 * If a section exists in Destination but not in Source, delete it from Destination
+	 */
+	private function deleteOrphanedSections()
+	{
+		foreach ($this->destinationSections as $destinationKey => $destinationSection) {
+			$found = FALSE;
+			foreach ($this->sourceSection as $sourceSection)
+			{
+				if ($this->equalSections($sourceSection, $destinationSection))
+				{
+					$found = TRUE;
+					break;
+				}
+			}
+			if ($found == FALSE) {
+				$this->deleteSection($destinationSection);
+				unset($this->destinationSection[$destinationKey]);
+			}
+		}
+	}
+
+	/**
+	 * If a section is identical in Source and Destination, remove it from consideration
+	 * by tagging the sourceSection with it's matching destinationSection's ID
+	 */
+	private function matchSections()
+	{
+		foreach ($this->sourceSections as &$sourceSection) {
+			foreach ($this->destinationSections as $destinationSection) {
+				if ($this->equalSections($sourceSection, $destinationSection)) {
+					$sourceSection['destination_id'] = $destinationSection['id'];
 				}
 			}
 		}
@@ -137,14 +320,14 @@ class TestRailSync extends TestRailAPIClient
 	}
 
 	/**
-	 * Sync $sourceProject's milestones to $destinationProject
+	 * Sync $sourceProject's sections to $destinationProject
 	 */
-	public function copyMilestones()
+	public function copySections()
 	{
-		foreach ($this->sourceMilestones as &$sourceMilestone) {
-			if (!isset($sourceMilestone['destination_id'])) {
-				$destinationMilestone = $this->addMilestone($this->destinationProject, $sourceMilestone);
-				$sourceMilestone['destination_id'] = $destinationMilestone['id'];
+		foreach ($this->sourceSections as &$sourceSection) {
+			if (!isset($sourceSection['destination_id'])) {
+				$destinationSection = $this->addSection($this->destinationProject, $sourceSection);
+				$sourceSection['destination_id'] = $destinationSection['id'];
 			}
 		}
 	}
@@ -163,39 +346,15 @@ class TestRailSync extends TestRailAPIClient
 	}
 
 	/**
-	 * Returns true if the milestones can be considered equal, else false
+	 * Returns true if the sections can be considered equal, else false
 	 *
 	 * @param array $a
 	 * @param array $b
-	 * @return bool true if the milestones can be considered equal, else false
+	 * @return bool true if the sections can be considered equal, else false
 	 */
-	private function equalMilestones($a, $b)
+	private function equalSections($a, $b)
 	{
 		if ($a['name'] != $b['name']) {
-			return false;
-		}
-		if ($a['description'] != $b['description']) {
-			return false;
-		}
-		if ($a['due_on'] != $b['due_on']) {
-			return false;
-		}
-		return true;
-	}
-
-	/**
-	 * Returns true if the suites can be considered equal, else false
-	 *
-	 * @param array $a
-	 * @param array $b
-	 * @return bool true if the suites can be considered equal, else false
-	 */
-	private function equalSuites($a, $b)
-	{
-		if ($a['name'] != $b['name']) {
-			return false;
-		}
-		if ($a['description'] != $b['description']) {
 			return false;
 		}
 		return true;
@@ -219,6 +378,23 @@ class TestRailSync extends TestRailAPIClient
 	}
 
 	/**
+	 * Add a new section to a project
+	 *
+	 * @param $projectId Project to add to
+	 * @param $section Section to add
+	 * @return array|mixed
+	 */
+	private function addSection($projectId, $section)
+	{
+		$data = array(
+			'name'          => $section['name'],
+			'suite_id'      => $section['description'],
+			'parent_id'     => $section['description'],
+		);
+		return $this->send_post("add_section/{$projectId}", $data);
+	}
+
+	/**
 	 * Add a new suite to a project
 	 *
 	 * @param $projectId Project to add to
@@ -235,44 +411,24 @@ class TestRailSync extends TestRailAPIClient
 	}
 
 	/**
-	 * Delete a milestone
+	 * Return an array of sections for the given projectid and suiteid
 	 *
-	 * @param array $milestone
-	 */
-	private function deleteMilestone($milestone)
-	{
-		$this->send_post("delete_milestone/{$milestone['id']}", array());
-	}
-
-	/**
-	 * Delete a suite
-	 *
-	 * @param array $suite
-	 */
-	private function deleteSuite($suite)
-	{
-		$this->send_post("delete_suite/{$suite['id']}", array());
-	}
-
-	/**
-	 * Return an array of milestones for the given projectid
-	 *
-	 * @param int projectid Project to get from
+	 * @param int $projectId
+	 * @param int $suiteId
 	 * @return array|mixed
 	 */
-	private function getMilestones($projectId)
+	private function getSections($projectId, $suiteId)
 	{
-		return $this->send_get("get_milestones/{$projectId}");
+		return $this->send_get("get_sections/{$projectId}&suite_id={$suiteId}");
 	}
 
 	/**
-	 * Return an array of suites for the given projectid
+	 * Test for duplicate suites
 	 *
-	 * @param int projectid Project to get from
-	 * @return array|mixed
+	 * @return TRUE if there are duplicate suite names in $this->sourceProject, else FALSE
 	 */
-	private function getSuites($projectId)
+	private function duplicateSuite()
 	{
-		return $this->send_get("get_suites/{$projectId}");
+		// Uses $this->equalSuites() method to test for equality.
 	}
 }
