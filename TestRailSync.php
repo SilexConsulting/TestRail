@@ -76,6 +76,10 @@ class TestRailSync extends TestRailAPIClient
 		$this->log = $log;
 	}
 
+	public function set_delete($delete) {
+		$this->delete = $delete;
+	}
+
 	/**
 	 * Perform sync operation between sourceProject and destinationProject
 	 */
@@ -229,7 +233,9 @@ class TestRailSync extends TestRailAPIClient
 	private function deleteCase($case)
 	{
 		$this->error_log("Delete orphaned Case '{$case['title']}' ({$case['id']})");
-		$this->send_post("delete_case/{$case['id']}", array());
+		if ($this->delete) {
+			$this->send_post("delete_case/{$case['id']}", array());
+		}
 	}
 
 	/**
@@ -376,7 +382,9 @@ class TestRailSync extends TestRailAPIClient
 	private function deleteSection($section)
 	{
 		$this->error_log("Delete orphaned Section '{$section['name']}' ({$section['id']})");
-		$this->send_post("delete_section/{$section['id']}", array());
+		if ($this->delete) {
+			$this->send_post("delete_section/{$section['id']}", array());
+		}
 	}
 
 	/**
@@ -503,7 +511,9 @@ class TestRailSync extends TestRailAPIClient
 	private function deleteSuite($suite)
 	{
 		$this->error_log("Delete orphaned Suite '{$suite['name']}' ({$suite['id']})");
-		$this->send_post("delete_suite/{$suite['id']}", array());
+		if ($this->delete) {
+			$this->send_post("delete_suite/{$suite['id']}", array());
+		}
 	}
 
 	/**
@@ -659,7 +669,9 @@ class TestRailSync extends TestRailAPIClient
 	private function deleteMilestone($milestone)
 	{
 		$this->error_log("Delete orphaned Milestone '{$milestone['name']}' ({$milestone['id']})");
-		$this->send_post("delete_milestone/{$milestone['id']}", array());
+		if ($this->delete) {
+			$this->send_post("delete_milestone/{$milestone['id']}", array());
+		}
 	}
 
 	/**

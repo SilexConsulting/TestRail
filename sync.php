@@ -30,6 +30,7 @@ function main($argv)
 	$testRail->set_source($config['source']);
 	$testRail->set_destination($config['destination']);
 	$testRail->set_log($config['log']);
+	$testRail->set_delete($config['delete']);
 
 	$testRail->sync();
 }
