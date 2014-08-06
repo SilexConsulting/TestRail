@@ -11,9 +11,11 @@ Install
 	git submodule init
 	git submodule update
 
-Run
----
+	cp config.ini-dist config.ini
 
 Edit config.ini
+
+Run
+---
 
     php sync.php config.ini

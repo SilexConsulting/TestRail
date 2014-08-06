@@ -47,7 +47,7 @@ class TestRailSync extends TestRailAPIClient
 	private $destinationSuites;
 
 	/**
-	 * COMPLETED Set the source project
+	 * Set the source project
 	 *
 	 * @param int $sourceProject
 	 */
@@ -57,13 +57,23 @@ class TestRailSync extends TestRailAPIClient
 	}
 
 	/**
-	 * COMPLETED Set the destination project
+	 * Set the destination project
 	 *
 	 * @param int $destinationProject
 	 */
 	public function set_destination($destinationProject)
 	{
 		$this->destinationProject = $destinationProject;
+	}
+
+	/**
+	 * Set log file
+	 *
+	 * @param int $log
+	 */
+	public function set_log($log)
+	{
+		$this->log = $log;
 	}
 
 	/**
@@ -136,6 +146,7 @@ class TestRailSync extends TestRailAPIClient
 			'milestone_id' => $sourceCase['milestone_id'],
 			'refs'         => $sourceCase['refs'],
 		);
+		$this->error_log("Add new Case '{$sourceCase['title']}' ({$sourceCase['id']})");
 		return $this->send_post("add_case/{$destinationSectionId}", $data);
 	}
 
@@ -174,7 +185,26 @@ class TestRailSync extends TestRailAPIClient
 	 */
 	private function getCases($projectId, $suiteId, $sectionId)
 	{
-		return $this->send_get("get_cases/{$projectId}&suite_id={$suiteId}&section_id={$sectionId}");
+		$cases = $this->send_get("get_cases/{$projectId}&suite_id={$suiteId}&section_id={$sectionId}");
+		$this->assertUniqueCases($cases);
+		return $cases;
+	}
+
+	/**
+	 * Throws an exception if two identical sections are found in $sections
+	 *
+	 * @param array $cases
+	 * @throws Exception
+	 */
+	private function assertUniqueCases($cases)
+	{
+		for ($i = 0; $i < count($cases); $i++) {
+			for ($j = 0; $j < $i; $j++) {
+				if ($this->equalCases($cases[$i], $cases[$j])) {
+					throw new Exception("Found two identical cases (id:{$sections[$i]['id']}, id:{$sections[$j]['id']}) cannot continue");
+				}
+			}
+		}
 	}
 
 	/**
@@ -199,6 +229,7 @@ class TestRailSync extends TestRailAPIClient
 	 */
 	private function deleteCase($case)
 	{
+		$this->error_log("Delete orphaned Case '{$case['title']}' ({$case['id']})");
 		$this->send_post("delete_case/{$case['id']}", array());
 	}
 
@@ -345,6 +376,7 @@ class TestRailSync extends TestRailAPIClient
 	 */
 	private function deleteSection($section)
 	{
+		$this->error_log("Delete orphaned Section '{$section['name']}' ({$section['id']})");
 		$this->send_post("delete_section/{$section['id']}", array());
 	}
 
@@ -363,6 +395,7 @@ class TestRailSync extends TestRailAPIClient
 			'name'          => $sourceSection['name'],
 			// parent_id is missing, which is why sections are getting flattened out.
 		);
+		$this->error_log("Add new Section '{$sourceSection['name']}'");
 		return $this->send_post("add_section/{$projectId}", $data);
 	}
 
@@ -470,6 +503,7 @@ class TestRailSync extends TestRailAPIClient
 	 */
 	private function deleteSuite($suite)
 	{
+		$this->error_log("Delete orphaned Suite '{$suite['name']}' ({$suite['id']})");
 		$this->send_post("delete_suite/{$suite['id']}", array());
 	}
 
@@ -501,6 +535,7 @@ class TestRailSync extends TestRailAPIClient
 			'name'          => $suite['name'],
 			'description'   => $suite['description'],
 		);
+		$this->error_log("Add new Suite '{$suite['name']}'");
 		return $this->send_post("add_suite/{$projectId}", $data);
 	}
 
@@ -624,6 +659,7 @@ class TestRailSync extends TestRailAPIClient
 	 */
 	private function deleteMilestone($milestone)
 	{
+		$this->error_log("Delete orphaned Milestone '{$milestone['name']}' ({$milestone['id']})");
 		$this->send_post("delete_milestone/{$milestone['id']}", array());
 	}
 
@@ -641,8 +677,14 @@ class TestRailSync extends TestRailAPIClient
 			'description'   => $milestone['description'],
 			'due_on'        => $milestone['due_on'],
 		);
+		$this->error_log("Add new Milestone '{$milestone['name']}'");
 		return $this->send_post("add_milestone/{$projectId}", $data);
 	}
 
 	/** END MILESTONES CODE */
+
+	private function error_log($message)
+	{
+		error_log(date('r') . ' ' . $message . PHP_EOL, 3, $this->log);
+	}
 }

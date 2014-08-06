@@ -7,7 +7,7 @@ password = 'QnIcssvJku'
 source = 4
 
 ; ID of destination project for TestRail scripts; will be made to mirror the source project
-destination = 5
+destination = 8
 
 ; path to log file
-log = ''
+log = 'TestRail.log'

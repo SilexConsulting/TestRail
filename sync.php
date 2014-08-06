@@ -27,6 +27,7 @@ function main($argv)
 	$testRail->set_password($config['password']);
 	$testRail->set_source($config['source']);
 	$testRail->set_destination($config['destination']);
+	$testRail->set_log($config['log']);
 
 	$testRail->sync();
 }
@@ -73,5 +74,6 @@ function get_config($filename)
  */
 function exception_handler(Exception $exception)
 {
-	fwrite(STDERR, $exception->getMessage() . " on line " . $exception->getLine() . " in file " . $exception->getFile() . PHP_EOL);
+	$message = $exception->getMessage() . " on line " . $exception->getLine() . " in file " . $exception->getFile();
+	error_log($message);
 }
