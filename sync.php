@@ -16,6 +16,8 @@ main($argv);
  */
 function main($argv)
 {
+	global $config;
+
 	if (sizeof($argv) != 2) {
 		throw new Exception('usage: php sync.php <path_to_config_file>');
 	}
@@ -74,6 +76,8 @@ function get_config($filename)
  */
 function exception_handler(Exception $exception)
 {
+	global $config;
+
 	$message = $exception->getMessage() . " on line " . $exception->getLine() . " in file " . $exception->getFile();
-	error_log($message);
+	error_log(date('r') . ' ' . $message . PHP_EOL, 3, $config['log']);
 }

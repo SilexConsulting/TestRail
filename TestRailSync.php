@@ -84,7 +84,6 @@ class TestRailSync extends TestRailAPIClient
 		// After this call, milestones are sync'd
 		// After this call, $this->sourceMilestones includes a destination_id key
 		$this->syncMilestones();
-
 		// After this call, suites are sync'd
 		// After this call, $this->sourceSuites includes a destination_id key
 		$this->syncSuites();
