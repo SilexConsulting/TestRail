@@ -1,13 +1,13 @@
 ; TestRail location, username and password
-url = 'https://numatic.testrail.com/'
-username = 'djotto@gmail.com'
-password = 'QnIcssvJku'
+url = 'https://example.testrail.com/'
+username = 'example@example.com'
+password = ''
 
 ; ID of source project for TestRail scripts (use the listprojects.php script to discover project IDs)
-source = 4
+source = 99
 
 ; ID of destination project for TestRail scripts; will be made to mirror the source project
-destination = 8
+destination = 100
 
 ; path to log file
-log = 'TestRail.log'
+log = ''
