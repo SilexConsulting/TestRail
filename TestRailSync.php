@@ -27,6 +27,26 @@ class TestRailSync extends TestRailAPIClient
 	private $destinationProject;
 
 	/**
+	 * @var array $sourceMilestones
+	 */
+	private $sourceMilestones;
+
+	/**
+	 * @var array $destinationMilestones
+	 */
+	private $destinationMilestones;
+
+	/**
+	 * @var array $sourceMilestones
+	 */
+	private $sourceSuites;
+
+	/**
+	 * @var array $destinationMilestones
+	 */
+	private $destinationSuites;
+
+	/**
 	 * COMPLETED Set the source project
 	 *
 	 * @param int $sourceProject
@@ -59,8 +79,7 @@ class TestRailSync extends TestRailAPIClient
 		// After this call, $this->sourceSuites includes a destination_id key
 		$this->syncSuites();
 
-		// After this call, sections are sync'd
-		// After this call, $this->sourceSections includes a destination_id key
+		// After this call, sections and cases are sync'd
 		$this->syncSections();
 	}
 
@@ -86,7 +105,7 @@ class TestRailSync extends TestRailAPIClient
 	}
 
 	/**
-	 * COMPLETED Sync $sourceProject's milestones to $destinationProject
+	 * Sync $sourceProject's milestones to $destinationProject
 	 */
 	public function copyCases(&$sourceCases, $destinationSuiteId, $destinationSectionId)
 	{
@@ -99,7 +118,7 @@ class TestRailSync extends TestRailAPIClient
 	}
 
 	/**
-	 * COMPLETED Add a new section to a project
+	 * Add a new section to a project
 	 *
 	 * @param $projectId Project to add to
 	 * @param $destinationSuiteId Suite to add to
@@ -119,7 +138,6 @@ class TestRailSync extends TestRailAPIClient
 		);
 		return $this->send_post("add_case/{$destinationSectionId}", $data);
 	}
-
 
 	/**
 	 * If a case exists in Destination but not in Source, delete it from Destination
@@ -270,7 +288,26 @@ class TestRailSync extends TestRailAPIClient
 	 */
 	private function getSections($projectId, $suiteId)
 	{
-		return $this->send_get("get_sections/{$projectId}&suite_id={$suiteId}");
+		$sections = $this->send_get("get_sections/{$projectId}&suite_id={$suiteId}");
+		$this->assertUniqueSections($sections);
+		return $sections;
+	}
+
+	/**
+	 * Throws an exception if two identical sections are found in $sections
+	 *
+	 * @param array $sections
+	 * @throws Exception
+	 */
+	private function assertUniqueSections($sections)
+	{
+		for ($i = 0; $i < count($sections); $i++) {
+			for ($j = 0; $j < $i; $j++) {
+				if ($this->equalSections($sections[$i], $sections[$j])) {
+					throw new Exception("Found two identical sections (id:{$sections[$i]['id']}, id:{$sections[$j]['id']}) cannot continue");
+				}
+			}
+		}
 	}
 
 	/**
@@ -404,7 +441,26 @@ class TestRailSync extends TestRailAPIClient
 	 */
 	private function getSuites($projectId)
 	{
-		return $this->send_get("get_suites/{$projectId}");
+		$suites = $this->send_get("get_suites/{$projectId}");
+		$this->assertUniqueSuites($suites);
+		return $suites;
+	}
+
+	/**
+	 * Throws an exception if two identical suites are found in $suites
+	 *
+	 * @param array $suites
+	 * @throws Exception
+	 */
+	private function assertUniqueSuites($suites)
+	{
+		for ($i = 0; $i < count($suites); $i++) {
+			for ($j = 0; $j < $i; $j++) {
+				if ($this->equalSuites($suites[$i], $suites[$j])) {
+					throw new Exception("Found two identical suites (id:{$suites[$i]['id']}, id:{$suites[$j]['id']}) cannot continue");
+				}
+			}
+		}
 	}
 
 	/**
@@ -523,8 +579,28 @@ class TestRailSync extends TestRailAPIClient
 	 */
 	private function getMilestones($projectId)
 	{
-		return $this->send_get("get_milestones/{$projectId}");
+		$milestones = $this->send_get("get_milestones/{$projectId}");
+		$this->assertUniqueMilestones($milestones);
+		return $milestones;
 	}
+
+	/**
+	 * Throws an exception if two identical milestones are found in $milestones
+	 *
+	 * @param array $milestones
+	 * @throws Exception
+	 */
+	private function assertUniqueMilestones($milestones)
+	{
+		for ($i = 0; $i < count($milestones); $i++) {
+			for ($j = 0; $j < $i; $j++) {
+				if ($this->equalMilestones($milestones[$i], $milestones[$j])) {
+					throw new Exception("Found two identical milestones (id:{$milestones[$i]['id']}, id:{$milestones[$j]['id']}) cannot continue");
+				}
+			}
+		}
+	}
+
 
 	/**
 	 * Returns true if the milestones can be considered equal, else false
@@ -569,14 +645,4 @@ class TestRailSync extends TestRailAPIClient
 	}
 
 	/** END MILESTONES CODE */
-
-	/**
-	 * Test for duplicate suites
-	 *
-	 * @return TRUE if there are duplicate suite names in $this->sourceProject, else FALSE
-	 */
-	private function duplicateSuite()
-	{
-		// Uses $this->equalSuites() method to test for equality.
-	}
 }
