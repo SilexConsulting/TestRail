@@ -698,4 +698,28 @@ class TestRailSync extends TestRailAPIClient
 	{
 		error_log(date('r') . ' ' . $message . PHP_EOL, 3, $this->log);
 	}
+
+    /**
+     * Test for duplicate milestones within a specified project.
+     * @param $projectId
+     * @type array $milestones_array
+     * @return bool TRUE if there are duplicate milestones in $this->sourceProject, else FALSE
+     */
+    private function duplicateMilestones($projectId)
+    {
+      $milestones_array = $this->send_get("get_milestones/{$projectId}");
+
+      for ($i = 0; $i < count($milestones_array); $i++) {
+        for ($j = 0; $j < count($milestones_array); $j++) {
+          if ($i == $j) {
+            //Continue at this point to skip the processing of commutative values
+            continue;
+          }
+          if ($this->equalMilestones($milestones_array[$i], $milestones_array[$j])) {
+            return true;
+          }
+        }
+      }
+      return false;
+    }
 }
